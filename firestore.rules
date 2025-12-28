@@ -1,0 +1,74 @@
+/**
+ * Core Philosophy:
+ * This ruleset establishes a public, read-only directory for the `/artists` collection.
+ * The primary goal is to make all artist information publicly accessible for viewing and listing,
+ * while completely securing the data against unauthorized writes, modifications, or deletions.
+ *
+ * Data Structure:
+ * The data is organized in a single top-level collection:
+ * - /artists/{artistId}: Contains public information about a specific artist.
+ *
+ * Key Security Decisions:
+ * - Public Read Access: Anyone, including unauthenticated users, can read data from the `/artists` collection.
+ *   This supports the app's core function as a public directory.
+ * - Write Lockdown: All write operations (create, update, delete) are currently disabled. This is a critical
+ *   security measure because the `Artist` data model lacks an 'ownerId' or 'creatorId' field, making it
+ *   impossible to securely determine who is authorized to manage the data. Writes should only be enabled
+ *   after the data model is updated to include a clear ownership link.
+ * - Default Deny: All paths not explicitly matched are inaccessible.
+ *
+ * Denormalization for Authorization:
+ * This principle is not currently applicable due to the simple, flat data structure. However, if write
+ * capabilities were added, an `ownerId` field would need to be denormalized onto each `artist` document
+ * to enable secure, owner-based authorization checks.
+ *
+ * Structural Segregation:
+ * This principle is not applicable as all artist data is considered public. There is no distinction
+ * between private and public artist information that would require separate collections.
+ */
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ----------------------------------------------------------------------
+    // Helper Functions
+    // ----------------------------------------------------------------------
+
+    // function isSignedIn() {
+    //   return request.auth != null;
+    // }
+
+
+    // ----------------------------------------------------------------------
+    // Collection Rules
+    // ----------------------------------------------------------------------
+
+    /**
+     * @description
+     * Manages access to the public artist directory. All users (including anonymous)
+     * can read artist data, but all write operations are disabled for security.
+     * @path
+     * /artists/{artistId}
+     * @allow
+     * An unauthenticated user listing all artists on the main page. (list)
+     * @deny
+     * Any user attempting to create a new artist profile. (create)
+     * @principle
+     * Provides public read access while preventing all modifications until a secure
+     * ownership model is defined in the data schema.
+     */
+    match /artists/{artistId} {
+      // Public Read: Anyone can view and list artists.
+      allow get: if true;
+      allow list: if true;
+
+      // CRITICAL: Cannot implement owner-only writes. The 'Artist' entity is missing an 'ownerId' or 'creatorId' field.
+      // To enable secure writes, add a field like `creatorId` to your Artist documents and uncomment/update the rules below.
+      // Example create rule: `allow create: if isSignedIn() && request.resource.data.creatorId == request.auth.uid;`
+      // Example update/delete rule: `allow update, delete: if isSignedIn() && resource.data.creatorId == request.auth.uid;`
+      allow create: if false; // TODO: Add owner validation once the schema is updated with an ownership field.
+      allow update: if false; // TODO: Add owner validation once the schema is updated with an ownership field.
+      allow delete: if false; // TODO: Add owner validation once the schema is updated with an ownership field.
+    }
+  }
+}
